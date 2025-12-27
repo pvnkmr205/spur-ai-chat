@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:4000";
+const API_BASE = "https://spur-ai-chat.onrender.com";
 
 export async function sendMessage(message: string, sessionId?: string) {
   const res = await fetch(`${API_BASE}/chat/message`, {
