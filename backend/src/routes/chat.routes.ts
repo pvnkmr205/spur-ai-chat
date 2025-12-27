@@ -18,15 +18,16 @@ router.post("/message", async (req, res) => {
       });
     }
 
-    const conversationId = getOrCreateConversation(sessionId);
+    const conversationId = await getOrCreateConversation(sessionId);
 
     saveMessage(conversationId, "user", message);
 
-    const history = getConversationHistory(conversationId);
+    const history = await getConversationHistory(conversationId);
 
     const aiReply = await generateReply(history, message);
 
-    saveMessage(conversationId, "ai", aiReply);
+    await saveMessage(conversationId, "user", message);
+    await saveMessage(conversationId, "ai", aiReply);
 
     return res.json({
       reply: aiReply,
