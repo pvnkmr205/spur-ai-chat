@@ -11,41 +11,74 @@ export interface Message {
   created_at: string;
 }
 
-export function getOrCreateConversation(sessionId?: string): string {
-  if (sessionId) {
-    const existing = db
-      .prepare("SELECT id FROM conversations WHERE id = ?")
-      .get(sessionId);
+// ---------- DB Helpers ----------
 
+function dbGet<T>(sql: string, params: any[] = []): Promise<T | undefined> {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row as T);
+    });
+  });
+}
+
+function dbAll<T>(sql: string, params: any[] = []): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows as T[]);
+    });
+  });
+}
+
+function dbRun(sql: string, params: any[] = []): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, (err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+}
+
+// ---------- Services ----------
+
+export async function getOrCreateConversation(
+  sessionId?: string
+): Promise<string> {
+  if (sessionId) {
+    const existing = await dbGet<{ id: string }>(
+      "SELECT id FROM conversations WHERE id = ?",
+      [sessionId]
+    );
     if (existing) return sessionId;
   }
 
   const newId = uuidv4();
-  db.prepare("INSERT INTO conversations (id) VALUES (?)").run(newId);
+  await dbRun("INSERT INTO conversations (id) VALUES (?)", [newId]);
   return newId;
 }
 
-export function saveMessage(
+export async function saveMessage(
   conversationId: string,
   sender: Sender,
   text: string
-) {
-  db.prepare(
+): Promise<void> {
+  await dbRun(
     `INSERT INTO messages (id, conversation_id, sender, text)
-     VALUES (?, ?, ?, ?)`
-  ).run(uuidv4(), conversationId, sender, text);
+     VALUES (?, ?, ?, ?)`,
+    [uuidv4(), conversationId, sender, text]
+  );
 }
 
-export function getConversationHistory(
+export async function getConversationHistory(
   conversationId: string,
   limit = 10
-): Message[] {
-  return db
-    .prepare(
-      `SELECT * FROM messages
-       WHERE conversation_id = ?
-       ORDER BY created_at ASC
-       LIMIT ?`
-    )
-    .all(conversationId, limit) as Message[];
+): Promise<Message[]> {
+  return dbAll<Message>(
+    `SELECT * FROM messages
+     WHERE conversation_id = ?
+     ORDER BY created_at ASC
+     LIMIT ?`,
+    [conversationId, limit]
+  );
 }
